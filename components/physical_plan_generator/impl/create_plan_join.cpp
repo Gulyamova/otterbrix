@@ -4,6 +4,7 @@
 #include <components/logical_plan/node_join.hpp>
 #include <components/physical_plan/collection/operators/operator_join.hpp>
 #include <components/physical_plan_generator/create_plan.hpp>
+#include <components/optimizer/cost/join_strategy.hpp>
 
 namespace services::collection::planner::impl {
 
@@ -15,18 +16,34 @@ namespace services::collection::planner::impl {
         auto expr = reinterpret_cast<const components::expressions::compare_expression_ptr*>(&node->expressions()[0]);
         auto collection_context = context.at(node->children().front()->collection_full_name());
         auto predicate = operators::predicates::create_predicate(collection_context, *expr);
-        auto join = boost::intrusive_ptr(
-            new operators::operator_join_t(collection_context, join_node->type(), std::move(predicate)));
+       
+        // CBO: выбираем join стратегию
+        const auto& left_node = node->children().front();
+        const auto& right_node = node->children().back();
+        auto strategy = cost::choose_join_strategy(left_node, right_node);
+
+        // Рекурсивно создаём подпланы
         operators::operator_ptr left;
         operators::operator_ptr right;
-        if (node->children().front()) {
-            left = create_plan(context, node->children().front(), limit);
+        if (left_node) {
+            left = create_plan(context, left_node, limit);
         }
-        if (node->children().back()) {
-            right = create_plan(context, node->children().back(), limit);
+        if (right_node) {
+            right = create_plan(context, right_node, limit);
         }
-        join->set_children(std::move(left), std::move(right));
-        return join;
+
+        // оператор на основе выбранной стратегии
+        switch (strategy) {
+            case cost::join_strategy_t::hash:
+                return boost::intrusive_ptr(
+                    new operators::operator_hash_join_t(std::move(predicate), std::move(left), std::move(right)));
+
+            case cost::join_strategy_t::nested_loop:
+                return boost::intrusive_ptr(
+                    new operators::operator_nested_loop_join_t(std::move(predicate), std::move(left), std::move(right)));
+        }
+
+        throw std::logic_error("Unknown join strategy");
     }
 
 } // namespace services::collection::planner::impl

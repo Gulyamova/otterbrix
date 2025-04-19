@@ -27,7 +27,9 @@ namespace components::logical_plan {
         : type_(type)
         , collection_(collection)
         , children_(resource)
-        , expressions_(resource) {}
+        , expressions_(resource) 
+        , statistics_(nullptr)         
+        , estimated_rows_(0) {}
 
     node_type node_t::type() const { return type_; }
 
@@ -177,5 +179,25 @@ namespace components::logical_plan {
                 return nullptr;
         }
     }
+
+    // === Реализация методов статистики ===
+
+    void node_t::set_statistics(std::shared_ptr<statistics::AbstractStatistics> stats) {
+        statistics_ = std::move(stats);
+    }
+
+    const std::shared_ptr<statistics::AbstractStatistics>& node_t::statistics() const {
+        return statistics_;
+    }
+
+    void node_t::set_estimated_rows(size_t rows) {
+        estimated_rows_ = rows;
+    }
+
+    size_t node_t::estimated_rows() const {
+        return estimated_rows_;
+    }
+
+
 
 } // namespace components::logical_plan

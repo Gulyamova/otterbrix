@@ -8,6 +8,7 @@
 #include <components/expressions/expression.hpp>
 #include <memory_resource>
 #include <unordered_set>
+#include <statistics/abstract_statistics.hpp>
 
 namespace components::serializer {
     class base_serializer_t;
@@ -53,6 +54,14 @@ namespace components::logical_plan {
         std::string to_string() const;
         std::pmr::memory_resource* resource() const noexcept;
 
+        // --- Поддержка статистики для CBO ---
+        void set_statistics(std::shared_ptr<statistics::AbstractStatistics> stats);
+        const std::shared_ptr<statistics::AbstractStatistics>& statistics() const;
+
+        void set_estimated_rows(size_t rows);
+        size_t estimated_rows() const;
+
+
     protected:
         const node_type type_;
         const collection_full_name_t collection_;
@@ -66,6 +75,9 @@ namespace components::logical_plan {
         virtual hash_t hash_impl() const = 0;
         virtual std::string to_string_impl() const = 0;
         virtual void serialize_impl(serializer::base_serializer_t*) const = 0;
+        std::shared_ptr<statistics::AbstractStatistics> statistics_;  
+        size_t estimated_rows_ = 0;                                   
+
     };
 
     struct node_hash final {
