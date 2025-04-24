@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <magic_enum.hpp>
 #include <string>
 
 namespace components::logical_plan {

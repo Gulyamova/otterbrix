@@ -7,8 +7,10 @@
 #include <components/base/collection_full_name.hpp>
 #include <components/expressions/expression.hpp>
 #include <memory_resource>
+#include <optional>
 #include <unordered_set>
 #include <statistics/abstract_statistics.hpp>
+#include <optimizer/cost/estimator.hpp> 
 
 namespace components::serializer {
     class base_serializer_t;
@@ -61,12 +63,17 @@ namespace components::logical_plan {
         void set_estimated_rows(size_t rows);
         size_t estimated_rows() const;
 
+        void set_cost(const components::optimizer::cost::cost_t& c) { cost_ = c; }
+        const std::optional<components::optimizer::cost::cost_t>& cost() const { return cost_; }
+
+
 
     protected:
         const node_type type_;
         const collection_full_name_t collection_;
         std::pmr::vector<node_ptr> children_;
         std::pmr::vector<expression_ptr> expressions_;
+        std::optional<components::optimizer::cost::cost_t> cost_;
 
         void
         collection_dependencies_(std::unordered_set<collection_full_name_t, collection_name_hash>& upper_dependencies);

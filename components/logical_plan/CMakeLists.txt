@@ -1,5 +1,7 @@
 project(logical_plan CXX)
 
+cmake_minimum_required(VERSION 3.10)
+
 set(SOURCE_${PROJECT_NAME}
         node.cpp
         node_aggregate.cpp

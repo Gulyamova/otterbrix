@@ -11,6 +11,42 @@
 
 namespace components::expressions {
 
+
+std::optional<literal_t> expression_arithmetic_t::try_fold_constant() const {
+    auto left_const = std::dynamic_pointer_cast<expression_constant_t>(left_);
+    auto right_const = std::dynamic_pointer_cast<expression_constant_t>(right_);
+
+    if (!left_const || !right_const) {
+        return std::nullopt;
+    }
+
+    const auto& l = left_const->value();
+    const auto& r = right_const->value();
+
+    if (l.type() != r.type() || l.type() != literal_type::integer) {
+        return std::nullopt;
+    }
+
+    int64_t lv = l.as_integer();
+    int64_t rv = r.as_integer();
+    int64_t result;
+
+    switch (op_) {
+        case arithmetic_operator_t::add:      result = lv + rv; break;
+        case arithmetic_operator_t::subtract: result = lv - rv; break;
+        case arithmetic_operator_t::multiply: result = lv * rv; break;
+        case arithmetic_operator_t::divide:
+            if (rv == 0) return std::nullopt;
+            result = lv / rv;
+            break;
+        default:
+            return std::nullopt;
+    }
+
+    return literal_t{result};
+}
+
+
     expression_group expression_i::group() const { return group_; }
 
     hash_t expression_i::hash() const {

@@ -10,7 +10,17 @@ namespace components::planner {
 
         statistics::attach_statistics_recursively(node);
 
-        return optimizer::optimize(node);;
+        attach_statistics_recursively(node);
+
+    
+        cost::estimate_node_output_rows(node);
+
+        node->set_cost(cost::estimate_node_cost(node));
+
+    
+        auto optimized = optimizer::optimize(node);
+
+        return optimized;
     }
 
 } // namespace components::planner

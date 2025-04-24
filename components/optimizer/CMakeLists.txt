@@ -1,12 +1,14 @@
-project(expressions CXX)
+project(optimizer CXX)
 
 set(SOURCE_${PROJECT_NAME}
-        expression.cpp
-        compare_expression.cpp
-        aggregate_expression.cpp
-        scalar_expression.cpp
-        sort_expression.cpp
-        expression_arithmetic.cpp
+        optimizer.cpp
+        cost/estimator.cpp
+        cost/join_strategy.cpp
+        cost/table_cost_model.cpp
+        rules/filter_pushdown.cpp
+        rules/limit_pushdown.cpp
+        rules/join_reordering.cpp
+        utils/memo.cpp
 )
 
 add_library(otterbrix_${PROJECT_NAME}
@@ -19,18 +21,13 @@ set_property(TARGET otterbrix_${PROJECT_NAME} PROPERTY EXPORT_NAME ${PROJECT_NAM
 
 target_link_libraries(
         otterbrix_${PROJECT_NAME} PRIVATE
-        otterbrix::serialization
-        Boost::boost
-        absl::int128
-        magic_enum::magic_enum
-        msgpackc-cxx
+        otterbrix::logical_plan  
+        otterbrix::statistics
 )
+
 
 target_include_directories(
         otterbrix_${PROJECT_NAME}
         PUBLIC
 )
 
-if (DEV_MODE)
-    add_subdirectory(test)
-endif ()

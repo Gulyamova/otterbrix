@@ -17,6 +17,8 @@
 #include "node_update.hpp"
 #include <components/serialization/deserializer.hpp>
 #include <components/serialization/serializer.hpp>
+#include <optimizer/cost/estimator.hpp>
+
 
 #include <algorithm>
 #include <boost/container_hash/hash.hpp>

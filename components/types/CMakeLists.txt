@@ -4,6 +4,7 @@ set(SOURCE_${PROJECT_NAME}
         types.cpp
         physical_value.cpp
         logical_value.cpp
+        literal.cpp
 )
 
 add_library(otterbrix_${PROJECT_NAME}
