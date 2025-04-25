@@ -1,114 +1,105 @@
 #include "estimator.hpp"
 #include <statistics/statistics.hpp>
-#include <components/logical_plan/node.hpp>
+#include "utils/memo.hpp"         
 
 namespace components::optimizer::cost {
 
-    // Структура для хранения затрат на ресурсы
-    struct cost_t {
-        double cpu_cost;  
-        double ram_cost;  
-        double rows_out; 
+namespace {
 
-        double total() const {
-            return cpu_cost + ram_cost * 0.01;  
-        }
-    };
+constexpr double kCpuPerRowScan   = 0.5;
+constexpr double kRamPerRowScan   = 0.001;
+constexpr double kCpuPerRowFilter = 0.2;
+constexpr double kRamPerRowFilter = 0.0005;
+constexpr double kHashJoinCpuCoef = 0.5;
+constexpr double kHashJoinRamCoef = 0.01;
 
-    // SCAN: оценка затрат на чтение таблицы
-    cost_t estimate_table_scan(const node_ptr& node) {
-        if (node->statistics()) {
-            if (node->statistics()->mode() == data_mode::table) {
-                auto stats = std::static_pointer_cast<TableStatistics>(node->statistics());
-                size_t rows = stats->row_count;
+} 
 
-                double cpu_cost = rows * 0.5;
-                double ram_cost = rows * 0.001;
+static Memo g_memo;   
 
-                node->set_estimated_rows(rows);
-                node->set_cpu_cost(cpu_cost);
-                node->set_ram_cost(ram_cost);
+cost_t estimate_table_scan(const node_ptr& n) {
+    if (g_memo.has(n)) return g_memo.get(n);
 
-                return {cpu_cost, ram_cost, rows};
-            }
-        }
+    size_t rows = 1000;                                
+    if (auto st = n->statistics()) rows = st->row_count;
 
-        // если статистики нет
-        size_t estimate = 1000;
-        double cpu_cost = estimate * 0.5;
-        double ram_cost = estimate * 0.001;
+    cost_t c { rows * kCpuPerRowScan, rows * kRamPerRowScan, static_cast<double>(rows) };
+    n->set_estimated_rows(c.rows_out);
+    n->set_cpu_cost(c.cpu_cost);
+    n->set_ram_cost(c.ram_cost);
 
-        node->set_estimated_rows(estimate);
-        node->set_cpu_cost(cpu_cost);
-        node->set_ram_cost(ram_cost);
+    g_memo.put(n, c);
+    return c;
+}
 
-        return {cpu_cost, ram_cost, estimate};
+cost_t estimate_filter(const node_ptr& n) {
+    if (g_memo.has(n)) return g_memo.get(n);
+
+    auto input = n->children().front();
+    auto inCost = estimate_node_cost(input);           
+
+    double sel  = 0.1;                                  
+    if (auto st = n->statistics()) sel = st->selectivity;
+
+    double rowsOut = inCost.rows_out * sel;
+    cost_t c { inCost.cpu_cost + inCost.rows_out * kCpuPerRowFilter,
+               inCost.ram_cost + inCost.rows_out * kRamPerRowFilter,
+               rowsOut };
+
+    n->set_estimated_rows(rowsOut);
+    n->set_cpu_cost(c.cpu_cost);
+    n->set_ram_cost(c.ram_cost);
+
+    g_memo.put(n, c);
+    return c;
+}
+
+// ---------- JOIN ----------
+cost_t estimate_join(const node_ptr& n) {
+    if (g_memo.has(n)) return g_memo.get(n);
+
+    auto l = estimate_node_cost(n->children()[0]);
+    auto r = estimate_node_cost(n->children()[1]);
+
+    bool useHash = true;
+
+    double rowsOut = l.rows_out * r.rows_out;         
+    double cpu = l.cpu_cost + r.cpu_cost;
+    double ram = l.ram_cost + r.ram_cost;
+
+    if (useHash) {
+        cpu += rowsOut * kHashJoinCpuCoef;
+        ram += rowsOut * kHashJoinRamCoef;
+    } else { 
+        cpu += rowsOut;               
     }
 
-    // FILTER: оценка затрат на фильтрацию
-    cost_t estimate_filter(const node_ptr& node) {
-        auto input = node->children()[0]; 
-        auto input_stats = input->statistics();
-        auto rows_in = input_stats->row_count;
-        double selectivity = 0.1;  // Пример: 10% строк проходят фильтр
-        double rows_out = rows_in * selectivity;
+    cost_t c{cpu, ram, rowsOut};
+    n->set_estimated_rows(rowsOut);
+    n->set_cpu_cost(cpu);
+    n->set_ram_cost(ram);
 
-        double cpu_cost = rows_in * 0.2; 
-        double ram_cost = rows_in * 0.0005;
+    g_memo.put(n, c);
+    return c;
+}
 
-        node->set_estimated_rows(rows_out);
-        node->set_cpu_cost(cpu_cost);
-        node->set_ram_cost(ram_cost);
-
-        return {cpu_cost, ram_cost, rows_out};
+cost_t estimate_node_cost(const node_ptr& n) {
+    switch (n->type()) {
+        case node_type::data_t:     return estimate_table_scan(n);
+        case node_type::function_t: return estimate_filter(n);
+        case node_type::join_t:     return estimate_join(n);
+        default:                    return {0,0,0};
     }
+}
 
-    // JOIN: оценка затрат на соединение
-    cost_t estimate_join(const node_ptr& node) {
-        auto left = node->children()[0];
-        auto right = node->children()[1];
-
-        auto left_cost = estimate_node_cost(left);
-        auto right_cost = estimate_node_cost(right);
-
-        double rows_out = left_cost.rows_out * right_cost.rows_out;
-
-        // Для hash join учтём дополнительные затраты
-        double cpu_cost = left_cost.cpu_cost + right_cost.cpu_cost + (rows_out * 0.5);  
-        double ram_cost = left_cost.ram_cost + right_cost.ram_cost + (rows_out * 0.01); 
-
-        node->set_estimated_rows(rows_out);
-        node->set_cpu_cost(cpu_cost);
-        node->set_ram_cost(ram_cost);
-
-        return {cpu_cost, ram_cost, rows_out};
+void estimate_node_output_rows(const node_ptr& n) {
+    if (auto st = n->statistics())  n->set_estimated_rows(st->row_count);
+    else {
+        size_t sum = 0;
+        for (auto& c : n->children()) sum += c->estimated_rows();
+        if (sum == 0) sum = 1000;
+        n->set_estimated_rows(sum);
     }
+}
 
-    // Функция для оценки затрат на узел
-    cost_t estimate_node_cost(const node_ptr& node) {
-        switch (node->type()) {
-            case node_type::data_t:
-                return estimate_table_scan(node);  
-            case node_type::function_t:
-                return estimate_filter(node);  
-            case node_type::join_t:
-                return estimate_join(node);  
-            default:
-                return {0.0, 0.0, 0.0}; 
-        }
-    }
-
-    void estimate_node_output_rows(const node_ptr& node) {
-        if (node->statistics()) {
-            auto stats = node->statistics();
-            node->set_estimated_rows(stats->row_count);
-        } else {
-            size_t total_rows = 0;
-            for (const auto& child : node->children()) {
-                total_rows += child->estimated_rows();
-            }
-            node->set_estimated_rows(total_rows);
-        }
-    }
-
-}  // namespace components::optimizer::cost
+} // namespace components::optimizer::cost
