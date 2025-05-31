@@ -3,6 +3,9 @@
 #include <components/expressions/compare_expression.hpp>
 #include <components/logical_plan/node_join.hpp>
 #include <components/physical_plan/collection/operators/operator_join.hpp>
+#include <components/physical_plan/collection/operators/operator_hash_join.hpp>
+#include <components/physical_plan/collection/operators/operator_merge_join.hpp>
+#include <components/physical_plan/collection/operators/operator_index_nested_loop_join.hpp>
 #include <components/physical_plan_generator/create_plan.hpp>
 #include <components/optimizer/cost/join_strategy.hpp>
 
@@ -34,16 +37,21 @@ namespace services::collection::planner::impl {
 
         // оператор на основе выбранной стратегии
         switch (strategy) {
-            case cost::join_strategy_t::hash:
-                return boost::intrusive_ptr(
-                    new operators::operator_hash_join_t(std::move(predicate), std::move(left), std::move(right)));
+    case cost::join_strategy_t::hash:
+        return make_intrusive<operators::operator_hash_join_t>(std::move(predicate),
+                                                               std::move(left), std::move(right));
 
-            case cost::join_strategy_t::nested_loop:
-                return boost::intrusive_ptr(
-                    new operators::operator_nested_loop_join_t(std::move(predicate), std::move(left), std::move(right)));
-        }
+    case cost::join_strategy_t::merge:
+        return make_intrusive<operators::operator_merge_join_t>(context.at(node->collection_full_name()),
+                                                                std::move(predicate));
 
-        throw std::logic_error("Unknown join strategy");
-    }
+    case cost::join_strategy_t::index_nested_loop:
+        return make_intrusive<operators::operator_index_nested_loop_join_t>(
+                    context.at(node->collection_full_name()), std::move(predicate));
 
+    case cost::join_strategy_t::grace_hash:
+        return make_intrusive<operators::operator_grace_hash_join_t>(
+                    context.at(node->collection_full_name()), std::move(predicate), 100'000);
+}
+                                             }
 } // namespace services::collection::planner::impl

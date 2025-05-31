@@ -9,8 +9,10 @@ enum class data_mode {
 };
 
 struct AbstractStatistics {
-    virtual data_mode mode() const = 0;
     virtual ~AbstractStatistics() = default;
+    virtual data_mode mode() const = 0;
+    virtual std::size_t row_count()   const = 0;   
+    virtual double      selectivity() const = 0;   
 };
 
 } // namespace statistics

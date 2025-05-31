@@ -9,16 +9,14 @@ namespace components::planner {
         assert(resource && node);
 
         statistics::attach_statistics_recursively(node);
-
-        attach_statistics_recursively(node);
-
     
         cost::estimate_node_output_rows(node);
-
-        node->set_cost(cost::estimate_node_cost(node));
-
+        cost::estimate_node_cost(node);
     
         auto optimized = optimizer::optimize(node);
+
+        cost::estimate_node_output_rows(optimized);
+        cost::estimate_node_cost(optimized);
 
         return optimized;
     }

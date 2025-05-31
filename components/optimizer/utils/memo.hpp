@@ -23,8 +23,23 @@ public:
         cache_[h] = optimized;
     }
 
+    bool has_cost(const components::logical_plan::node_ptr& node) const {
+        return cost_cache_.contains(node->hash());
+    }
+
+    components::optimizer::cost::cost_t
+    get_cost(const components::logical_plan::node_ptr& node) const {
+        return cost_cache_.at(node->hash());
+    }
+
+    void put_cost(const components::logical_plan::node_ptr& node,
+                  const components::optimizer::cost::cost_t& c) {
+        cost_cache_[node->hash()] = c;
+    }
+
 private:
     std::unordered_map<size_t, components::logical_plan::node_ptr> cache_;
+    std::unordered_map<size_t, components::optimizer::cost::cost_t> cost_cache_; 
 };
 
 } // namespace optimizer::utils

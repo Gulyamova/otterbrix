@@ -40,6 +40,7 @@ set(${PROJECT_NAME}_SOURCES
         collection/operators/operator_group.cpp
         collection/operators/operator_sort.cpp
         collection/operators/operator_join.cpp
+        
         collection/operators/aggregation.cpp
         collection/operators/operator_raw_data.cpp
 )
@@ -48,6 +49,12 @@ add_library(otterbrix_${PROJECT_NAME}
         ${${PROJECT_NAME}_HEADERS}
         ${${PROJECT_NAME}_SOURCES}
 )
+
+target_sources(otterbrix_operators PRIVATE
+    operator_merge_join.hpp
+    operator_index_nested_loop_join.hpp
+    operator_grace_hash_join.hpp)
+
 
 
 add_library(otterbrix::${PROJECT_NAME} ALIAS otterbrix_${PROJECT_NAME})

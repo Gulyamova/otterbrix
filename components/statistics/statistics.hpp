@@ -24,14 +24,17 @@ struct ColumnStatistics {
 };
 
 struct TableStatistics : public AbstractStatistics {
+    explicit TableStatistics(std::pmr::memory_resource* res);
     std::pmr::unordered_map<std::string, ColumnStatistics> columns;
-    size_t row_count = 0;
+    data_mode  mode() const override       { return data_mode::table; }
+    std::size_t row_count()   const override { return row_count_; }
+    double      selectivity() const override { return selectivity_; }
+    void set_row_count(std::size_t v) { row_count_  = v; }
+    void set_selectivity(double  v)   { selectivity_ = v; }
 
-    TableStatistics(std::pmr::memory_resource* res);
-
-    data_mode mode() const override {
-        return data_mode::table;
-    }
+    private:
+    std::size_t row_count_  = 1'000;   //  дефолт
+    double      selectivity_ = 1.0;    
 };
 
 } // namespace statistics

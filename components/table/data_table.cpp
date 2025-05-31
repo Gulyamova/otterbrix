@@ -2,6 +2,7 @@
 
 #include <components/vector/data_chunk.hpp>
 #include <components/vector/vector_operations.hpp>
+#include <components/statistics/abstract_statistics.hpp>
 #include <unordered_set>
 
 #include "row_group.hpp"
@@ -279,5 +280,14 @@ namespace components::table {
     std::vector<column_segment_info> data_table_t::get_column_segment_info() {
         return row_groups_->get_column_segment_info();
     }
+
+    std::shared_ptr<statistics::AbstractStatistics> data_table_t::collect_statistics() const {
+    auto stats = std::make_shared<statistics::BasicStatistics>();
+
+    stats->row_count = this->total_rows(); 
+    stats->selectivity = 0.1; 
+    return stats;
+    }
+
 
 } // namespace components::table

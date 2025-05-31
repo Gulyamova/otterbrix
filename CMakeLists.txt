@@ -90,7 +90,7 @@ message(STATUS "DCMAKE_TOOLCHAIN_FILE = ${CMAKE_TOOLCHAIN_FILE}")
 if(POLICY CMP0167)
     cmake_policy(SET CMP0167 OLD)
 endif()
-find_package(Boost 1.86.0 REQUIRED)
+find_package(Boost 1.86.0 REQUIRED COMPONENTS json)
 find_package(fmt 11.1.3 REQUIRED)
 find_package(spdlog 1.15.1 REQUIRED)
 find_package(pybind11 2.10.0 REQUIRED)
@@ -102,6 +102,7 @@ find_package(ZLIB 1.2.12 REQUIRED)
 find_package(BZip2 1.0.8 REQUIRED)
 find_package(magic_enum 0.8.1 REQUIRED)
 find_package(actor-zeta REQUIRED)
+find_package(libbacktrace CONFIG REQUIRED)
 
 
 # conan

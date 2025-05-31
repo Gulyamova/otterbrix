@@ -7,7 +7,10 @@ namespace components::optimizer::cost {
 
 enum class join_strategy_t {
     hash,
-    nested_loop
+    nested_loop,
+    merge,
+    index_nested_loop,
+    grace_hash
 };
 
 join_strategy_t choose_join_strategy(const components::logical_plan::node_ptr& left,

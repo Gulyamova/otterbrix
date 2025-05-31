@@ -23,6 +23,7 @@ void ColumnStatistics::update_with_histogram(int64_t value) {
 }
 
 TableStatistics::TableStatistics(std::pmr::memory_resource* res)
-    : columns(std::pmr::polymorphic_allocator<std::pair<const std::string, ColumnStatistics>>(res)) {}
+    : AbstractStatistics()
+    , columns(std::pmr::polymorphic_allocator<std::pair<const std::string, ColumnStatistics>>(res)) {}
 
 } // namespace statistics

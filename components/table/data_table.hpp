@@ -76,6 +76,9 @@ namespace components::table {
 
         uint64_t row_group_size() const;
 
+        std::shared_ptr<statistics::AbstractStatistics> collect_statistics() const;
+
+
     private:
         void initialize_scan_with_offset(table_scan_state& state,
                                          const std::vector<storage_index_t>& column_ids,

@@ -66,6 +66,10 @@ namespace components::logical_plan {
         void set_cost(const components::optimizer::cost::cost_t& c) { cost_ = c; }
         const std::optional<components::optimizer::cost::cost_t>& cost() const { return cost_; }
 
+        void   set_cpu_cost(double v) { cpu_cost_ = v; }
+        void   set_ram_cost(double v) { ram_cost_ = v; }
+        double cpu_cost()       const { return cpu_cost_; }
+        double ram_cost()       const { return ram_cost_; }
 
 
     protected:
@@ -83,7 +87,9 @@ namespace components::logical_plan {
         virtual std::string to_string_impl() const = 0;
         virtual void serialize_impl(serializer::base_serializer_t*) const = 0;
         std::shared_ptr<statistics::AbstractStatistics> statistics_;  
-        size_t estimated_rows_ = 0;                                   
+        size_t estimated_rows_ = 0;
+        double cpu_cost_ = 0.0;
+        double ram_cost_ = 0.0;                                   
 
     };
 
