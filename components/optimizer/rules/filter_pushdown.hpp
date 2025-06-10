@@ -6,8 +6,7 @@ namespace components::optimizer::rules {
 
 class FilterPushdownRule : public Rule {
     public:
-        std::optional<components::logical_plan::node_ptr>
-        apply(const components::logical_plan::node_ptr& node) override;
+        std::optional<logical_plan::node_ptr> apply(const logical_plan::node_ptr& node) override;
     };
     
 

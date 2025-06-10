@@ -5,8 +5,10 @@
 static operator_data_ptr big_data(int from,int to)
 {
     auto d = make_operator_data(nullptr);
-    for(int i=from;i<=to;++i){auto doc=components::document::document_t::make_document(nullptr);
-        doc->set("id",i); d->append(doc);}
+    for(int i=from;i<=to;++i){
+        auto doc=components::document::document_t::make_document(nullptr);
+        doc->set("id",i); d->append(doc);
+    }
     return d;
 }
 

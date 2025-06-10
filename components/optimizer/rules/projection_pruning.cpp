@@ -7,30 +7,35 @@ namespace components::optimizer::rules {
 using namespace components::logical_plan;
 
 std::optional<node_ptr> ProjectionPruningRule::apply(const node_ptr& node) {
+    // собираем все выражения, которые используются выше по дереву
+    auto used_exprs = collect_used_expressions(node);
+
+    bool changed = false;
+
     for (auto& child : node->children()) {
-        if (auto rewritten = apply(child)) {
-            child = *rewritten;
-        }
-    }
+        if (child->type() == node_type::node_data_t && !child->expressions().empty()) {
+            std::pmr::vector<expression_ptr> new_exprs(child->resource());
 
-    if (node->type() == node_type::data_t && !node->expressions().empty()) {
-        auto used = collect_used_expressions(node);
-        std::pmr::vector<expression_ptr> new_exprs(node->resource());
+            for (const auto& expr : child->expressions()) {
+                if (used_exprs.contains(expr)) {
+                    new_exprs.push_back(expr);
+                }
+            }
 
-        for (const auto& expr : node->expressions()) {
-            if (used.contains(expr)) {
-                new_exprs.push_back(expr);
+            if (new_exprs.size() < child->expressions().size()) {
+                child->replace_expressions(std::move(new_exprs));
+                changed = true;
             }
         }
 
-        if (new_exprs.size() < node->expressions().size()) {
-            auto& exprs = const_cast<std::pmr::vector<expression_ptr>&>(node->expressions());
-            exprs = std::move(new_exprs);
-            return node;
+        // рекурсивно применяем правило к потомкам
+        if (auto rewritten = apply(child)) {
+            child = *rewritten;
+            changed = true;
         }
     }
 
-    return std::nullopt;
+    return changed ? node : std::nullopt;
 }
 
 } // namespace components::optimizer::rules

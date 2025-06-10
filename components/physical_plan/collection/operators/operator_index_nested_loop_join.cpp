@@ -10,7 +10,7 @@ void operator_index_nested_loop_join_t::on_execute_impl(pipeline::context_t* ctx
     output_ = make_operator_data(left_->output()->resource());
 
     std::string key;
-    if (!extract_key_(key)) {   // непонятный предикат
+    if (!extract_key_(key)) {
         return operator_join_t::on_execute_impl(ctx);
     }
 

@@ -4,6 +4,6 @@
 
 namespace compnents::optimizer {
 
-components::logical_plan::node_ptr optimize(const components::logical_plan::node_ptr& node);
+components::logical_plan::node_ptr optimize(logical_plan::node_ptr node);
 
 } // namespace optimizer

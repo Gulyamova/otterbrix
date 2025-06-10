@@ -2,19 +2,22 @@
 
 namespace components::optimizer::rules {
 
+using namespace components::logical_plan;
+using namespace components::expressions;
+
 std::unordered_set<expression_ptr> collect_used_expressions(const node_ptr& node) {
-    std::unordered_set<expression_ptr> result;
+    std::unordered_set<expression_ptr> used;
 
     for (const auto& expr : node->expressions()) {
-        result.insert(expr);
+        used.insert(expr);
     }
 
     for (const auto& child : node->children()) {
-        auto child_used = collect_used_expressions(child);
-        result.insert(child_used.begin(), child_used.end());
+        const auto child_exprs = collect_used_expressions(child);
+        used.insert(child_exprs.begin(), child_exprs.end());
     }
 
-    return result;
+    return used;
 }
 
 } // namespace components::optimizer::rules

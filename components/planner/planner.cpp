@@ -8,7 +8,9 @@ namespace components::planner {
         -> logical_plan::node_ptr {
         assert(resource && node);
 
-        statistics::attach_statistics_recursively(node);
+        statistics::attach_statistics_recursively(node, [](const collection_full_name_t& name) -> const table::data_table_t* {
+        return resolve_table_from_catalog(name); 
+        });
     
         cost::estimate_node_output_rows(node);
         cost::estimate_node_cost(node);

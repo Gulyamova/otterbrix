@@ -16,7 +16,8 @@ std::optional<node_ptr> PredicateSimplificationRule::apply(const node_ptr& node)
 
     bool changed = false;
     for (auto& expr : const_cast<std::pmr::vector<expression_ptr>&>(node->expressions())) {
-        if (auto bin = std::dynamic_pointer_cast<expression_binary_t>(expr)) {
+        //?? dynamic_cast
+        if (auto bin = std::dynamic_cast<compare_expression_t_t>(expr)) {
             if (bin->op() == binary_operator_t::equal && bin->left() == bin->right()) {
                 expr = std::make_shared<expression_constant_t>(true);
                 changed = true;

@@ -8,7 +8,7 @@ using namespace components::logical_plan;
 
 static utils::Memo memo;  
 
-node_ptr optimize(const node_ptr& node) {
+node_ptr optimize(node_ptr node) {
     if (auto cached = memo.get(node)) {
         return *cached;
     }
