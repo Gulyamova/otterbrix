@@ -11,7 +11,6 @@ set(${PROJECT_NAME}_SOURCES
 
         collection/operators/get/operator_get.cpp
         collection/operators/get/simple_value.cpp
-
         collection/operators/merge/operator_merge.cpp
         collection/operators/merge/operator_and.cpp
         collection/operators/merge/operator_or.cpp
