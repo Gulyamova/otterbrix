@@ -43,6 +43,7 @@ set(${PROJECT_NAME}_SOURCES
         collection/operators/operator_merge_join.cpp
         collection/operators/operator_index_nested_loop_join.cpp
         collection/operators/operator_grace_hash_join.cpp
+        collection/operators/operator_index_nested_loop_join.cpp
         
         collection/operators/aggregation.cpp
         collection/operators/operator_raw_data.cpp
