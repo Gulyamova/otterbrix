@@ -27,7 +27,18 @@ namespace components::logical_plan {
         return res;
     }
 
-    hash_t node_join_t::hash_impl() const { return 0; }
+    hash_t node_join_t::hash_impl() const {
+    hash_t h = std::hash<std::string>{}("join");
+    h ^= std::hash<int>{}(static_cast<int>(type_)) + 0x9e3779b9;
+    for (const auto& child : children_) {
+        h ^= child->hash() + 0x9e3779b9 + (h << 6) + (h >> 2);
+    }
+    for (const auto& expr : expressions_) {
+        h ^= expr->hash() + 0x9e3779b9 + (h << 6) + (h >> 2);
+    }
+    return h;
+}
+
 
     std::string node_join_t::to_string_impl() const {
         std::stringstream stream;

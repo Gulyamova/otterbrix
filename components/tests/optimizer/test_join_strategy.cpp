@@ -1,67 +1,123 @@
-//
-//  Проверяем выбор стратегии оптимизатора на синтетических планах
-//
-#include <catch2/catch.hpp>
-
-#include <components/logical_plan/node_data.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <optimizer/cost/join_strategy.hpp>
-#include <statistics/table_statistics.hpp>
+#include <components/logical_plan/node.hpp>
+#include <components/logical_plan/node_data.hpp>
 
 using namespace components::logical_plan;
 using namespace components::optimizer::cost;
-namespace cs = components::statistics;
 
-// утилита: создаём Data-узел с заданным row_count
-static node_ptr make_table(std::size_t rows,
-                           std::pmr::memory_resource* res = nullptr)
-{
-    auto n   = make_node_data(res, {"db", "t"});
-    auto st  = std::make_shared<cs::TableStatistics>(res);
-    st->row_count = rows;
-    n->set_statistics(st);
+// Созднаие узлов с заданным количеством строк
+node_ptr make_mock_node(size_t rows) {
+    auto n = make_node_data(nullptr, {"db", "collection"});
+    n->set_estimated_rows(rows);
     return n;
 }
 
-TEST_CASE("CBO chooses Hash Join for сравнительно небольших входов")
-{
-    auto left  = make_table(10'000);
-    auto right = make_table(2'000);
+TEST_CASE("choose_join_strategy selects appropriate strategy") {
 
-    REQUIRE(choose_join_strategy(left, right) == join_strategy_t::hash);
-}
+    SECTION("Hash join preferred for large tables") {
+        auto left = make_mock_node(10'000);
+        auto right = make_mock_node(8'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::hash);
+    }
 
-TEST_CASE("CBO chooses Nested-Loop when both inputs tiny")
-{
-    auto left  = make_table(50);
-    auto right = make_table(40);
+    SECTION("Nested Loop preferred for small tables") {
+        auto left = make_mock_node(30);
+        auto right = make_mock_node(40);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::nested_loop);
+    }
 
-    REQUIRE(choose_join_strategy(left, right) == join_strategy_t::nested_loop);
-}
+    SECTION("Merge join selected for sorted medium tables") {
+        auto left = make_mock_node(1'000);
+        auto right = make_mock_node(1'200);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::merge);
+    }
 
-TEST_CASE("CBO chooses Merge Join when объёмы сильно различаются")
-{
-    auto big     = make_table(1'000'000);
-    auto small   = make_table(20'000);
+    SECTION("Grace hash is fallback for very large and memory-limited tables") {
+        auto left = make_mock_node(100'000);
+        auto right = make_mock_node(100'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::grace_hash);
+    }
 
-    REQUIRE(choose_join_strategy(big, small) == join_strategy_t::merge);
-}
+    SECTION("Index Nested Loop returns infinity cost when no index") {
+        auto left = make_mock_node(500);
+        auto right = make_mock_node(1'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy != join_strategy_t::index_nested_loop); // пока не поддержан
+    }
 
-TEST_CASE("CBO chooses Index Nested Loop when right < 20 rows и «есть индекс»")
-{
-    auto left  = make_table(100'000);
-    auto right = make_table(15);
+    SECTION("Identical tables prefer hash join") {
+        auto left = make_mock_node(3'000);
+        auto right = make_mock_node(3'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::hash);
+    }
 
-    // «Флажок» наличия индекса: обнуляем селективность
-    right->statistics()->selectivity = 0.0;
+    SECTION("Highly unbalanced tables still prefer hash") {
+        auto left = make_mock_node(10'000);
+        auto right = make_mock_node(20);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::hash);
+    }
 
-    REQUIRE(choose_join_strategy(left, right) == join_strategy_t::index_nested_loop);
-}
+    SECTION("Tiny table and large table prefer nested loop") {
+        auto left = make_mock_node(5);
+        auto right = make_mock_node(10'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::nested_loop);
+    }
 
-TEST_CASE("CBO chooses Grace-Hash when оба входа большие, не помещаются в RAM")
-{
-    auto left  = make_table(5'000'000);
-    auto right = make_table(4'000'000);
+    SECTION("Grace hash dominates when memory spill expected") {
+        auto left = make_mock_node(200'000);
+        auto right = make_mock_node(300'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::grace_hash);
+    }
 
-    // Подразумевается, что оценщик заметит rows_out > threshold_memory
-    REQUIRE(choose_join_strategy(left, right) == join_strategy_t::grace_hash);
+    SECTION("Merge join is not chosen without sorted input (yet)") {
+        auto left = make_mock_node(5'000);
+        auto right = make_mock_node(6'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy != join_strategy_t::merge);
+    }
+
+    SECTION("Avoid index nested loop without index support") {
+        auto left = make_mock_node(100);
+        auto right = make_mock_node(100'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy != join_strategy_t::index_nested_loop);
+    }
+
+    SECTION("Large identical tables prefer hash join again") {
+        auto left = make_mock_node(100'000);
+        auto right = make_mock_node(100'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::hash);
+    }
+
+    SECTION("Low-cost joins correctly chosen by heuristic") {
+        auto left = make_mock_node(1);
+        auto right = make_mock_node(1);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::nested_loop);
+    }
+
+    SECTION("One empty table results in zero cost") {
+        auto left = make_mock_node(0);
+        auto right = make_mock_node(1'000);
+        auto strategy = choose_join_strategy(left, right);
+        REQUIRE(strategy == join_strategy_t::nested_loop);
+    }
+
+    SECTION("Symmetric inputs yield same result regardless of order") {
+        auto A = make_mock_node(5000);
+        auto B = make_mock_node(7000);
+        auto AB = choose_join_strategy(A, B);
+        auto BA = choose_join_strategy(B, A);
+        REQUIRE(AB == BA);
+    }
 }

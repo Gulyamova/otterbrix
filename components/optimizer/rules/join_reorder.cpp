@@ -48,7 +48,8 @@ std::optional<node_ptr> JoinReorderRule::apply(const node_ptr& node) {
         for (size_t i = 0; i < n; ++i) {
             if (used[i]) continue;
 
-            auto candidate = make_node_join(node->resource(), current->collection_full_name());
+            auto join_type = static_cast<node_join_ptr>(node)->type();
+            auto candidate = make_node_join(node->resource(), current->collection_full_name(), join_type);
             candidate->append_child(current);
             candidate->append_child(inputs[i]);
 
@@ -62,6 +63,8 @@ std::optional<node_ptr> JoinReorderRule::apply(const node_ptr& node) {
         auto new_join = make_node_join(node->resource(), current->collection_full_name());
         new_join->append_child(current);
         new_join->append_child(inputs[next_idx]);
+        new_join->append_expressions(node->expressions());
+
 
         current = new_join;
         used[next_idx] = true;
