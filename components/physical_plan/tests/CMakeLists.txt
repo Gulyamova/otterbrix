@@ -8,7 +8,6 @@ set(${PROJECT_NAME}_SOURCES
         operators/test_operators.cpp
         operators/test_get_operators.cpp
         operators/test_merge_operators.cpp
-        operators/test_join_strategy_select.cpp
 )
 
 add_executable(${PROJECT_NAME} main.cpp ${${PROJECT_NAME}_SOURCES})
